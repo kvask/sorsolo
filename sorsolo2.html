@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Osztály Sorsoló 🎲</title>
+    
+    <style>
+        body {
+            background-color: #000033; /* Sötétkék háttér */
+            color: white;             /* Fehér szöveg */
+            font-family: Arial, sans-serif;
+            padding: 20px;
+        }
+        h1, h2 {
+            border-bottom: 2px solid #5c5c8a;
+            padding-bottom: 5px;
+            color: #e6e6ff;
+        }
+        .container {
+            background-color: #000055; /* Kicsit világosabb kék konténer */
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 25px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+        }
+        textarea, input[type="number"] {
+            width: 95%;
+            padding: 10px;
+            margin-bottom: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            /* A jobb olvashatóságért a beviteli mezők lehetnek világosak */
+            background-color: #f0f8ff; 
+            color: #333; 
+            font-size: 16px;
+        }
+        button {
+            background-color: #4CAF50; /* Zöld gomb */
+            color: white;
+            padding: 12px 18px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+            font-size: 16px;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .result-box {
+            background-color: #000033; /* Ugyanaz, mint a body háttér */
+            border: 1px dashed #5c5c8a;
+            padding: 15px;
+            margin-top: 15px;
+            min-height: 50px;
+            white-space: pre-wrap; /* Megtartja a sortöréseket */
+            font-size: 1.1em;
+        }
+        .result-box h2 {
+            margin-top: 0;
+            color: #ffc107; /* Kiemelt sárga szín a nyertesnek */
+        }
+        
+        /* Szerencsekerék Stílusok */
+        .wheel-container {
+            position: relative;
+            width: 350px;
+            height: 350px;
+            margin: 20px auto;
+        }
+        #pointer {
+            /* Egy piros háromszög mutató a kerék tetején */
+            position: absolute;
+            top: -15px; 
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-left: 15px solid transparent;
+            border-right: 15px solid transparent;
+            border-top: 25px solid #FF0000; /* Piros */
+            z-index: 10;
+        }
+        #wheelCanvas {
+            /* A pörgés animációját CSS transition végzi */
+            transition: transform 5s cubic-bezier(0.1, 0.7, 0.1, 1);
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Osztály Sorsoló Eszköztár</h1>
+
+    <div class="container">
+        <h2>Diákok</h2>
+        <p>Írd be a diákok neveit, soronként egyet:</p>
+        <textarea id="studentNames" rows="10" placeholder="Pl:
+Nagy Anna
+Kiss Béla
+Kovács Cecília"></textarea>
+
+        <h3>Funkciók:</h3>
+        
+        <button onclick="shuffleStudents()">Véletlen Sorrend</button>
+        <button onclick="pickOneStudent()">Egy Diák Kiválasztása</button>
+        
+        <div>
+            <label for="groupCount">Csoportok száma:</label>
+            <input type="number" id="groupCount" value="2" min="2" style="width: 60px;">
+            <button onclick="createGroups()">Csoportosítás</button>
+        </div>
+        
+        <div id="studentResult" class="result-box">
+            Itt jelennek meg a diákokkal kapcsolatos eredmények.
+        </div>
+    </div>
+
+    <div class="container">
+        <h2>Szerencsekerék 🎡</h2>
+        <p>Írd be a választható opciókat, soronként egyet:</p>
+        <textarea id="wheelOptions" rows="5" placeholder="Pl:
+Felelés
+Plusz pont
+Házi feladat
+Szünet"></textarea>
+
+        <button onclick="spinWheel()">Pörgetés!</button>
+
+        <div class="wheel-container">
+            <div id="pointer"></div>
+            <canvas id="wheelCanvas" width="350" height="350"></canvas>
+        </div>
+        
+        <div id="wheelResult" class="result-box">
+            Itt jelenik meg a pörgetés eredménye.
+        </div>
+    </div>
+
+
+    <script>
+        // === Segédfüggvények ===
+
+        /**
+         * Visszaadja a diákok listáját egy tömbben, kiszűrve az üres sorokat.
+         */
+        function getStudents() {
+            const names = document.getElementById('studentNames').value.trim();
+            if (names === "") return [];
+            // Szétválasztja soronként, és kiszűri az üres sorokat
+            return names.split('\n').filter(name => name.trim() !== "");
+        }
+
+        /**
+         * Megjeleníti az eredményt a megadott ID-jű elemben.
+         */
+        function displayResult(elementId, content) {
+            document.getElementById(elementId).innerHTML = content;
+        }
+
+        /**
+         * Egy tömb elemeit keveri össze (Fisher-Yates algoritmus).
+         */
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        }
+
+        // === Diák Funkciók ===
+
+        /**
+         * 1. Véletlenszerűen sorrendezi a diákokat.
+         */
+        function shuffleStudents() {
+            let students = getStudents();
+            if (students.length === 0) {
+                displayResult('studentResult', 'Kérlek, adj meg diákneveket!');
+                return;
+            }
+            shuffleArray(students);
+            displayResult('studentResult', '<h3>Véletlen Sorrend:</h3>' + students.join('<br>'));
+        }
+
+        /**
+         * 2. Véletlenszerűen kiválaszt egy diákot.
+         */
+        function pickOneStudent() {
+            let students = getStudents();
+            if (students.length === 0) {
+                displayResult('studentResult', 'Kérlek, adj meg diákneveket!');
+                return;
+            }
+            const randomIndex = Math.floor(Math.random() * students.length);
+            const picked = students[randomIndex];
+            displayResult('studentResult', `<h3>Kiválasztott Diák:</h3><h2>${picked}</h2>`);
+        }
+
+        /**
+         * 3. Megadott számú csoportot készít.
+         */
+        function createGroups() {
+            let students = getStudents();
+            const groupCount = parseInt(document.getElementById('groupCount').value);
+
+            if (students.length === 0) {
+                displayResult('studentResult', 'Kérlek, adj meg diákneveket!');
+                return;
+            }
+            if (groupCount < 1 || groupCount > students.length) {
+                displayResult('studentResult', 'Érvénytelen csoportszám. A csoportok száma nem lehet több, mint a diákok száma.');
+                return;
+            }
+
+            shuffleArray(students); // Mindig keverjük meg csoportosítás előtt
+
+            // Létrehozzuk az üres csoport-tömböket
+            let groups = [];
+            for (let i = 0; i < groupCount; i++) {
+                groups.push([]);
+            }
+
+            // Sorban szétosztjuk a diákokat a csoportok között
+            students.forEach((student, index) => {
+                groups[index % groupCount].push(student);
+            });
+
+            // HTML kimenet generálása
+            let html = '<h3>Csoportok:</h3>';
+            groups.forEach((group, index) => {
+                html += `<h4>${index + 1}. Csoport:</h4>`;
+                html += group.join('<br>'); // A csoport tagjai
+                html += '<br><br>';
+            });
+            displayResult('studentResult', html);
+        }
+
+
+        // === Szerencsekerék Funkciók ===
+
+        let wheelOptions = [];
+        // Színek a cikkelyekhez (ha több opció van, ismétlődnek)
+        const colors = ["#FF5733", "#33FF57", "#3357FF", "#FF33A1", "#33FFF6", "#F6FF33", "#FF8C33", "#8C33FF"];
+        let currentRotation = 0; // Nyilvántartja az aktuális elfordulást (fokban)
+        let isSpinning = false; // Ne lehessen pörgetni, amíg pörög
+
+        const canvas = document.getElementById('wheelCanvas');
+        const ctx = canvas.getContext('2d');
+
+        /**
+         * Beolvassa az opciókat a textareából.
+         */
+        function getWheelOptions() {
+            const opts = document.getElementById('wheelOptions').value.trim();
+            if (opts === "") return [];
+            return opts.split('\n').filter(opt => opt.trim() !== "");
+        }
+
+        /**
+         * Megrajzolja a kereket a vászonra (Canvas).
+         */
+        function drawWheel() {
+            wheelOptions = getWheelOptions();
+            if (wheelOptions.length === 0) {
+                ctx.clearRect(0, 0, canvas.width, canvas.height); // Töröljük a vásznat
+                return;
+            }
+
+            const numOptions = wheelOptions.length;
+            const arcSize = (2 * Math.PI) / numOptions; // Cikkely mérete radiánban
+            const radius = canvas.width / 2 - 10; // Kis margó
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+            const startAngle = -Math.PI / 2; // Kezdjük felülről (12 óra)
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height); // Törlés
+            ctx.font = '16px Arial';
+
+            for (let i = 0; i < numOptions; i++) {
+                const angle = startAngle + i * arcSize;
+                
+                // 1. Cikkely rajzolása
+                ctx.beginPath();
+                ctx.fillStyle = colors[i % colors.length];
+                ctx.moveTo(centerX, centerY);
+                // arc(x, y, sugár, kezdő szög, záró szög)
+                ctx.arc(centerX, centerY, radius, angle, angle + arcSize);
+                ctx.closePath();
+                ctx.fill();
+
+                // 2. Szöveg rajzolása (ez a trükkös rész)
+                ctx.save(); // Mentsük a vászon állapotát (elforgatás előtt)
+                ctx.fillStyle = "white"; // Szöveg színe
+                const textAngle = angle + arcSize / 2; // A cikkely közepe
+
+                // Pozicionálás a cikkely közepére
+                const textX = centerX + Math.cos(textAngle) * (radius / 1.5);
+                const textY = centerY + Math.sin(textAngle) * (radius / 1.5);
+                ctx.translate(textX, textY);
+                
+                // Forgassuk a szöveget, hogy kifelé nézzen
+                ctx.rotate(textAngle + Math.PI / 2); 
+                
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(wheelOptions[i], 0, 0);
+                ctx.restore(); // Visszaállítjuk a vásznat
+            }
+        }
+
+        /**
+         * 4. Elindítja a kerék pörgését.
+         */
+        function spinWheel() {
+            if (isSpinning || wheelOptions.length === 0) return; // Már pörög, vagy üres
+            
+            isSpinning = true;
+            displayResult('wheelResult', 'Pörgés... 🌀');
+
+            // Véletlen pörgés: minimum 5 teljes kör + egy véletlen szög
+            const degreesToSpin = (360 * 5) + Math.random() * 360;
+            currentRotation += degreesToSpin; // Növeljük az össz-elfordulást
+
+            // A CSS transition fogja animálni a pörgést
+            canvas.style.transform = `rotate(${currentRotation}deg)`;
+
+            // Várjunk a CSS animáció végéig (5 másodperc, a CSS-ben definiálva)
+            setTimeout(() => {
+                isSpinning = false;
+                
+                // === Nyertes kiszámítása ===
+                const arcSizeDeg = 360 / wheelOptions.length;
+                
+                // Az 'currentRotation' az, amennyit elfordult.
+                // A mutató 0 foknál (felül) van.
+                // A cikkelyeinket 0 foktól (felül) rajzoltuk.
+                
+                // Hány fokot fordult a 360-as körön belül?
+                const finalAngle = currentRotation % 360; 
+
+                // A mutató (0 fok) melyik cikkelybe esik?
+                // Ha 10 fokot fordult, a 350 fokos szög van felül (a 0-hoz képest).
+                const angleAtPointer = (360 - finalAngle) % 360; 
+                
+                // Megnézzük, hányadik cikkely ez
+                const winnerIndex = Math.floor(angleAtPointer / arcSizeDeg);
+                
+                const winner = wheelOptions[winnerIndex];
+                displayResult('wheelResult', `<h3>A nyertes:</h3><h2>${winner}</h2>`);
+
+            }, 5000); // 5000ms = 5s (CSS transition time)
+        }
+
+        // === Indítás ===
+        // Figyeljük, ha változik a kerék tartalma, és újrarajzoljuk
+        document.getElementById('wheelOptions').addEventListener('input', drawWheel);
+        // Rajzoljuk meg a kereket betöltéskor (ha már van benne szöveg)
+        drawWheel();
+        
+    </script>
+
+</body>
+</html>
