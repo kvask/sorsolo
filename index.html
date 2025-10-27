@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Diákok és Szerencsekerék</title>
+    <style>
+        body {
+            background-color: #1a2b44;
+            color: white;
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            text-align: center;
+        }
+        h1, h2 {
+            margin: 20px 0;
+        }
+        input, button {
+            padding: 10px;
+            margin: 5px;
+            font-size: 16px;
+            border-radius: 5px;
+            border: none;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        #studentsList, #groupsOutput, #randomStudentOutput, #wheelOptionsOutput {
+            margin: 20px 0;
+            padding: 10px;
+            background-color: #2a3b54;
+            border-radius: 10px;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        canvas {
+            margin: 20px auto;
+            max-width: 300px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Diákok és Szerencsekerék</h1>
+
+    <!-- Diákok bevitele -->
+    <h2>Diákok</h2>
+    <textarea id="studentNames" rows="5" cols="30" placeholder="Diákok nevei, soronként egy név"></textarea><br>
+    <button onclick="shuffleStudents()">Véletlenszerű sorrend</button>
+    <div id="studentsList"></div>
+
+    <!-- Csoportok készítése -->
+    <h2>Csoportok készítése</h2>
+    <input type="number" id="groupCount" min="1" placeholder="Csoportok száma">
+    <button onclick="makeGroups()">Csoportok létrehozása</button>
+    <div id="groupsOutput"></div>
+
+    <!-- Véletlenszerű diák kiválasztása -->
+    <h2>Véletlenszerű diák</h2>
+    <button onclick="selectRandomStudent()">Diák kiválasztása</button>
+    <div id="randomStudentOutput"></div>
+
+    <!-- Szerencsekerék -->
+    <h2>Szerencsekerék</h2>
+    <textarea id="wheelOptions" rows="3" cols="30" placeholder="Lehetőségek, soronként egy"></textarea><br>
+    <button onclick="spinWheel()">Pörgetés</button>
+    <canvas id="wheel" width="300" height="300"></canvas>
+    <div id="wheelOptionsOutput"></div>
+
+    <script>
+        let students = [];
+        let wheelOptions = [];
+
+        // Véletlenszerű sorrend
+        function shuffleStudents() {
+            const input = document.getElementById('studentNames').value.trim();
+            students = input.split('\n').map(s => s.trim()).filter(s => s);
+            if (students.length === 0) {
+                document.getElementById('studentsList').innerHTML = "Kérlek, adj meg legalább egy diáknevet!";
+                return;
+            }
+            for (let i = students.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [students[i], students[j]] = [students[j], students[i]];
+            }
+            document.getElementById('studentsList').innerHTML = `<strong>Véletlenszerű sorrend:</strong><br>${students.join('<br>')}`;
+        }
+
+        // Csoportok készítése
+        function makeGroups() {
+            const groupCount = parseInt(document.getElementById('groupCount').value);
+            if (students.length === 0) {
+                document.getElementById('groupsOutput').innerHTML = "Kérlek, először add meg a diákok neveit!";
+                return;
+            }
+            if (!groupCount || groupCount < 1) {
+                document.getElementById('groupsOutput').innerHTML = "Kérlek, adj meg érvényes csoportszámot!";
+                return;
+            }
+            const shuffled = [...students].sort(() => Math.random() - 0.5);
+            const groups = [];
+            const groupSize = Math.ceil(students.length / groupCount);
+            for (let i = 0; i < groupCount; i++) {
+                groups.push(shuffled.slice(i * groupSize, (i + 1) * groupSize));
+            }
+            let output = `<strong>Csoportok:</strong><br>`;
+            groups.forEach((group, index) => {
+                if (group.length > 0) {
+                    output += `<strong>${index + 1}. csoport:</strong> ${group.join(', ')}<br>`;
+                }
+            });
+            document.getElementById('groupsOutput').innerHTML = output;
+        }
+
+        // Véletlenszerű diák kiválasztása
+        function selectRandomStudent() {
+            if (students.length === 0) {
+                document.getElementById('randomStudentOutput').innerHTML = "Kérlek, először add meg a diákok neveit!";
+                return;
+            }
+            const randomIndex = Math.floor(Math.random() * students.length);
+            document.getElementById('randomStudentOutput').innerHTML = `<strong>Kiválasztott diák:</strong> ${students[randomIndex]}`;
+        }
+
+        // Szerencsekerék
+        const canvas = document.getElementById('wheel');
+        const ctx = canvas.getContext('2d');
+        let spinning = false;
+        let currentAngle = 0;
+
+        function drawWheel(options) {
+            const colors = ['#FF6F61', '#6B5B95', '#88B04B', '#F7CAC9', '#92A8D1', '#955251', '#B565A7'];
+            const arc = 2 * Math.PI / options.length;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            options.forEach((option, i) => {
+                ctx.beginPath();
+                ctx.fillStyle = colors[i % colors.length];
+                ctx.moveTo(150, 150);
+                ctx.arc(150, 150, 150, arc * i + currentAngle, arc * (i + 1) + currentAngle);
+                ctx.fill();
+                ctx.fillStyle = 'white';
+                ctx.font = '16px Arial';
+                ctx.save();
+                ctx.translate(150, 150);
+                ctx.rotate(arc * i + arc / 2 + currentAngle);
+                ctx.fillText(option, 60, 10);
+                ctx.restore();
+            });
+            // Nyíl rajzolása
+            ctx.beginPath();
+            ctx.fillStyle = 'white';
+            ctx.moveTo(150, 20);
+            ctx.lineTo(140, 40);
+            ctx.lineTo(160, 40);
+            ctx.fill();
+        }
+
+        function spinWheel() {
+            const input = document.getElementById('wheelOptions').value.trim();
+            wheelOptions = input.split('\n').map(o => o.trim()).filter(o => o);
+            if (wheelOptions.length === 0) {
+                document.getElementById('wheelOptionsOutput').innerHTML = "Kérlek, adj meg legalább egy lehetőséget!";
+                return;
+            }
+            if (spinning) return;
+            spinning = true;
+            const spinTime = 3000 + Math.random() * 2000;
+            const spinAngle = Math.random() * 360 + 720;
+            let startTime = null;
+
+            function animate(time) {
+                if (!startTime) startTime = time;
+                const progress = (time - startTime) / spinTime;
+                if (progress < 1) {
+                    currentAngle += spinAngle * (1 - progress) / spinTime * 16;
+                    drawWheel(wheelOptions);
+                    requestAnimationFrame(animate);
+                } else {
+                    spinning = false;
+                    const arc = 2 * Math.PI / wheelOptions.length;
+                    const selectedIndex = Math.floor((2 * Math.PI - (currentAngle % (2 * Math.PI))) / arc) % wheelOptions.length;
+                    document.getElementById('wheelOptionsOutput').innerHTML = `<strong>Kisorsolt lehetőség:</strong> ${wheelOptions[selectedIndex]}`;
+                    drawWheel(wheelOptions);
+                }
+            }
+            requestAnimationFrame(animate);
+        }
+
+        // Inicializálás
+        drawWheel(['Pörgesd meg!']);
+    </script>
+</body>
+</html>
